@@ -1,0 +1,13 @@
+\ Model runway_allocation_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+ 
+Subject To
+ Flight_f0: x00 + x01 + x02 = 1
+Bounds
+ x00 = 0
+ x01 = 0
+ x02 = 0
+Binaries
+ x00 x01 x02
+End
