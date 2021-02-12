@@ -1,4 +1,4 @@
-5"""
+"""
 Data generation algorithm for AE4441-16 Operations Optimisation assignment
 Generating random input data for the optimisation algorithm
 

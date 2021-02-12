@@ -1,8 +1,6 @@
-amount of flights,5
-average flights per hour,5
+amount of flights,3
+average flights per hour,10
 time in seconds,time in d:hh:mm:ss,category,approach direction,wind direction
-633,0:00:10:33,Medium,218,62
-1393,0:00:23:13,Heavy,262,291
-2234,0:00:37:14,Medium,188,86
-2958,0:00:49:18,Heavy,9,335
-3740,0:01:02:20,Medium,268,221
+479,0:00:07:59,Medium,157,198
+742,0:00:12:22,Medium,222,246
+1088,0:00:18:08,Heavy,82,341
