@@ -33,6 +33,7 @@ def convertTime(seconds):
     return time
 
 time_seconds = 0
+IAFs = ['SUGOL', 'ARTIP', 'RIVER']
 headings = np.arange(0,360,1)
 
 
@@ -56,7 +57,7 @@ with open('landing_requests.csv','w') as data_file:
     writer.writerow(['amount of flights',flights])
     writer.writerow(['average flights per hour', flight_frequency])
 
-    writer.writerow(['time in seconds', 'time in d:hh:mm:ss', 'category', 'approach direction', 'wind direction'])
+    writer.writerow(['time in seconds', 'time in d:hh:mm:ss', 'category', 'IAF', 'wind direction'])
     for flight in range(flights):
         time_since_last_flight = np.random.normal(mean_time_between_flights, stdev_time_between_flights)
         time_seconds = int(time_seconds + time_since_last_flight)
@@ -67,7 +68,7 @@ with open('landing_requests.csv','w') as data_file:
         else:
             category = 'Heavy'
 
-        approach_direction = random.choice(headings)
+        approach_direction = random.choice(IAFs)
         
         wind_direction = random.choice(headings)
         

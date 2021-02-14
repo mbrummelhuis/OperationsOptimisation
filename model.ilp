@@ -3,8 +3,8 @@
 Minimize
  
 Subject To
- AC_sep_f1_f0_r2: 109 x1_2_0 >= 120
+ AC_sep_f1_f0_r0: 10 x1_0_0 >= 120
 Bounds
 Binaries
- x1_2_0
+ x1_0_0
 End

@@ -9,6 +9,11 @@ NOTES:
     > Added a penalty for any delay, as of right now this is arbitrary, could/should be tuned.
     > How to correctly implement
 
+CHANGES:
+    > Modified datageneration to output IAF directly, took out code for flights_filtered to handle this change in datageneration
+    > Added the part where the flights dataframe is enhanced with landing time at specific runway
+    > Took out (old) separation constraint, model is feasible without
+    > 
 """
 
 import gurobipy as gp
@@ -27,11 +32,8 @@ startTime = time.time()
 
 # Load the flight data
 flights = pd.read_csv(os.path.join(cwd, filename), delimiter=',', skiprows=2, header=0)
-# flights.drop([4], axis=0, inplace=True)
 
-model = gp.Model('runway_allocation')
-
-# Initiate multidicts for storage
+# Stored constants------------------------------------------------------------------------------------------
 runways, runway_headings, runway_pop = gp.multidict({
     'R18R': [180, 14500],
     'R06E': [60, 700],
@@ -40,19 +42,31 @@ runways, runway_headings, runway_pop = gp.multidict({
 
 headwind_runways = [h + 180 if h + 180 <= 360 else h - 180 for h in runway_headings.values()]
 
-IAFs, deg_range_IAFs, time_to_r, time_to_taxi = gp.multidict({
-
-    'ARTIP': [[0, 120], [1177, 503, 766], [60, 39, 154]],
-    'RIVER': [[120, 240], [636, 1177, 1261], [60, 39, 154]],
-    'SUGOL': [[240, 360], [709, 1040, 777], [60, 39, 154]]
-
+IAFs, time_to_r, time_to_taxi = gp.multidict({
+    'ARTIP': [[1177, 503, 766], [60, 39, 154]],
+    'RIVER': [[636, 1177, 1261], [60, 39, 154]],
+    'SUGOL': [[709, 1040, 777], [60, 39, 154]]
 })
+print(time_to_r['ARTIP'][1])
 
 AC_type, AC_fuel, AC_db = gp.multidict({
     'H': [1.029, 17],
     'M': [0.242, 7]
 })
 
+# Adding landing time at specific runway to the flights dataframe (for checking the separation constraint)
+flights['landing time R18R'] = 0
+flights['landing time R06E'] = 0
+flights['landing time R24W'] = 0
+
+for f in range(len(flights)):
+    for IAF in range(len(IAFs)): #Iterate over IAFS
+        if IAFs[IAF] == flights['IAF'][f]: 
+            flights['landing time R18R'][f] = time_to_r[IAFs[IAF]][0] + flights['time in seconds'][f]
+            flights['landing time R06E'][f] = time_to_r[IAFs[IAF]][1] + flights['time in seconds'][f]
+            flights['landing time R24W'][f] = time_to_r[IAFs[IAF]][2] + flights['time in seconds'][f]
+            
+print(flights)
 '''
 Creating a dataframe which contains:
     - IAF
@@ -71,21 +85,8 @@ df_cpa = pd.DataFrame(cpa)
 df_cpa.columns = ['IAF', 'Runway', 'CPA/AC', 'AC']
 
 '''
-Filtering the generated landing request to their respective IAF
-'''
-flights_filtered = flights.copy()
-
-for i in range(len(flights)):
-    for IAF in IAFs:
-        lb = deg_range_IAFs[IAF][0]
-        ub = deg_range_IAFs[IAF][1]
-        if lb <= flights['approach direction'][i] < ub:
-            flights_filtered.loc[i, 'approach direction'] = IAF
-
-'''
 Creating runway compatibility based on wind direction and runway heading
 '''
-
 runway_comp = np.zeros((len(flights['wind direction']), len(runways)))
 
 for w in range(len(flights['wind direction'])):
@@ -103,14 +104,17 @@ Setting up the decision variables:
 x = {}
 G = {}
 
-dt = 60 # delta time in seconds
+model = gp.Model('runway_allocation') #Initiate model
+
+dt = 60 # delta time delay in seconds
+delay_steps = 10 #maximum number of delay steps
 d1 = 0
-delays = np.ones(60).tolist()
+delays = np.ones(delay_steps).tolist()
 delays[0] = d1
 for i in range(len(delays) - 1):
     delays[i + 1] = delays[i] + dt
 
-for f in range(len(flights['approach direction'])):
+for f in range(len(flights['IAF'])):
     for r in range(len(runways)):
         for d in delays:
             x[f, r, d] = model.addVar(lb=0, ub=1, vtype=GRB.BINARY, name='x%s_%s_%s' % (f, r, d))
@@ -129,8 +133,7 @@ Adding the constraints:
 '''
 
 # Always Assign Flight Constraint
-
-for f in range(len(flights['approach direction'])):
+for f in range(len(flights['IAF'])):
     AAS_LHS = LinExpr()
     for r in range(len(runways)):
         for d in delays:
@@ -151,6 +154,9 @@ for f in range(len(flights['approach direction'])):
 
 # AC Time Separation Constraint
 T_sep = 120  # Time separation in seconds
+
+
+
 
 
 for f1 in range(len(flights['time in seconds'])):
@@ -175,13 +181,13 @@ for f1 in range(len(flights['time in seconds'])):
                                 # Time separation is arrival time of f2 - arrival time of f1 + taxi time f1
                                 # Second AC is going to be delayed
                                 AC_sep_LHS += abs(arrival_f2 + delay - (arrival_f1 +
-                                    time_to_taxi[flights_filtered['approach direction'][f1]][r1])) * x[f2, r1, delay]
+                                    time_to_taxi[flights['IAF'][f1]][r1])) * x[f2, r1, delay]
 
                                 model.addConstr(lhs=AC_sep_LHS, sense=GRB.GREATER_EQUAL, rhs=T_sep, name=f'AC_sep_f{f2}_f{f1}_r{r1}')
 
 # Noise limit switching constraint
 # TODO: right now this does nothing with the noise levels generated by the AC type > only in the cost func
-N_limit = np.exp(11/4)
+#N_limit = np.exp(11/4)
 
 # for f in range(len(flights['approach direction'])):
 #     for r in range(len(runways)):
@@ -210,11 +216,11 @@ n_n = 1
 obj_func = LinExpr()
 
 for t in AC_type:
-    for f in range(len(flights_filtered['approach direction'])):
+    for f in range(len(flights['IAF'])):
         for r in range(len(runways)):
             delay_coef = 1
             for d in delays:
-                C_F = delay_coef * df_cpa.loc[(df_cpa['IAF'] == flights_filtered['approach direction'][f]) & (df_cpa['AC'] == t)
+                C_F = delay_coef * df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][f]) & (df_cpa['AC'] == t)
                                  & (df_cpa['Runway'] == runways[r]), 'CPA/AC'].values[0]
 
                 obj_func += C_F * x[f, r, d]
@@ -234,7 +240,12 @@ model.update()
 model.write('model_formulation.lp')
 
 model.optimize()
-model.computeIIS()
+
+#If the model is feasible, no IIS can be computed
+try:
+    model.computeIIS()
+except:
+    pass
 
 # model.remove(gp.Constr())
 
@@ -242,7 +253,10 @@ model.computeIIS()
 model.update()
 model.write('model_delete_var.lp')
 model.optimize()
-model.computeIIS()
+try:
+    model.computeIIS()
+except:
+    pass
 
 endTime = time.time()
 
