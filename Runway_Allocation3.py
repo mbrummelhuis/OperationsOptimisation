@@ -17,6 +17,10 @@ TODO:
     > Validate whether the aircraft separation constraint works properly
     > Do some fancy kind of data visualisation
     > Tune coefficients of the objective function
+
+NOTES Kars:
+    > Got some kind of output, but still not really what we'd like.
+    > Looking more into it tomorrow morning 18/02/21
 """
 
 import gurobipy as gp
@@ -26,6 +30,7 @@ import numpy as np
 import numpy.random as rnd
 import time
 import os
+import csv
 
 # Get path to current folder and select the correct file
 cwd = os.getcwd()
@@ -100,7 +105,7 @@ for i in range(len(delays) - 1):
 for f in range(len(flights['IAF'])):
     for r in range(len(runways)):
         for d in delays:
-            x[f, r, d] = model.addVar(lb=0, ub=1, vtype=GRB.BINARY, name='x%s_%s_%s' % (f, r, d))
+            x[f, r, d] = model.addVar(lb=0, ub=1, vtype=GRB.BINARY, name='x%s_%s_%s' % (f, r, d)) # name='x%s_%s_%s' % (f, r, d)
 
 model.update()
 
@@ -124,7 +129,7 @@ for f in range(len(flights['IAF'])):
 # AC Time Separation Constraint
 # For each flight, check if they are landing on the same runway within the T_sep interval. If this is the case, append constraint 
 # stating only one flight can land.
-# TO DO: Figure out how delay fits into all of this
+# TODO: Figure out how delay fits into all of this
 T_sep = 120  # Time separation in seconds
 
 for f1 in range(len(flights['time in seconds'])):
@@ -177,6 +182,7 @@ model.update()
 model.write('model_formulation.lp')
 
 model.optimize()
+model.write('solution.sol')
 
 #If the model is feasible, no IIS can be computed
 try:
@@ -187,6 +193,7 @@ except:
 model.update()
 model.write('model_delete_var.lp')
 model.optimize()
+
 try:
     model.computeIIS()
     model.write('model.ilp')
@@ -197,3 +204,15 @@ endTime = time.time()
 
 total_time = endTime - startTime
 print('Finished in', round(total_time,2) , 'seconds!')
+
+# Obtaining the results from the model --------------------------------------------------------
+
+with open('solution.sol', newline='\n') as csvfile:
+    reader = csv.reader((line.replace(' ', ' ') for line in csvfile), delimiter=' ')
+    next(reader)  # skip header
+    next(reader)
+    sol = {}
+    for var, value in reader:
+        sol[var] = float(value)
+
+# df_sol = pd.DataFrame.from_records(sol)
