@@ -19,8 +19,10 @@ TODO:
     > Tune coefficients of the objective function
 
 NOTES Kars:
-    > Got some kind of output, but still not really what we'd like.
-    > Looking more into it tomorrow morning 18/02/21
+    > Got output although not through the conventional way.
+    > No matter the size of the dataset and frequency the maximum delay is 60 seconds.
+        * Seems odd to me, maybe has to do with the fact that delay is not integrated in the time separation
+        >> Should be looked into
 """
 
 import gurobipy as gp
@@ -31,6 +33,9 @@ import numpy.random as rnd
 import time
 import os
 import csv
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_theme()
 
 # Get path to current folder and select the correct file
 cwd = os.getcwd()
@@ -211,8 +216,44 @@ with open('solution.sol', newline='\n') as csvfile:
     reader = csv.reader((line.replace(' ', ' ') for line in csvfile), delimiter=' ')
     next(reader)  # skip header
     next(reader)
-    sol = {}
-    for var, value in reader:
-        sol[var] = float(value)
+    landedFlights = []
+    used_runways = []
+    flight_delay = []
+    arrTimeRunway = []
 
-# df_sol = pd.DataFrame.from_records(sol)
+    for var, value in reader:
+        value = float(value)
+        if value == 1: # Only account for the assigned decision variables
+            varSplit = var.split('_') # Splitting the name of the variable: [flight, runway, delay]
+            runwayIndex = int(varSplit[1])
+            flightDelay = float(varSplit[2])
+            flightIndex = int(varSplit[0][1]) # Index of the flight, to obtain the arrival time
+
+            # Storing the flight schedule for all flights
+            landedFlights.append(varSplit[0])
+            used_runways.append(runways[runwayIndex])
+            flight_delay.append(flightDelay)
+
+
+            # Storing the landing time on runway
+            landing_str = 'landing time ' + runways[runwayIndex]
+            arrTimeRunway.append(flights[landing_str][flightIndex])
+
+df_schedule = pd.DataFrame(list(zip(landedFlights, flights['IAF'].to_list(), flight_delay, used_runways, arrTimeRunway)),
+                           columns=['Flight', 'IAF', 'Delay', 'Landing Runway', 'Arrival time at Runway'])
+
+plt.figure()
+df_schedule['Delay'].hist()
+plt.title('Histogram of delays')
+plt.xlabel('Delay [s]')
+plt.show()
+
+plt.figure()
+df_schedule['Landing Runway'].hist()
+df_schedule['IAF'].hist()
+plt.title('Histogram of runway usage vs IAF')
+plt.show()
+
+plt.figure()
+sns.pairplot(df_schedule)
+plt.show()
