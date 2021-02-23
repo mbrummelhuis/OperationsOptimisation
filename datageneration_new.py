@@ -64,9 +64,9 @@ with open('landing_requests.csv','w') as data_file:
         
         category_probability = random.random()
         if category_probability < medium:
-            category = 'Medium'
+            category = 'M'
         else:
-            category = 'Heavy'
+            category = 'H'
 
         approach_direction = random.choice(IAFs)
         
