@@ -13,16 +13,19 @@ CHANGES:
         > Deleted wind restriction and noise limit swithing constraint
     > Reprogrammed separation constraint using the additional data in flights df.
 
-TODO:
-    > Validate whether the aircraft separation constraint works properly
-    > Do some fancy kind of data visualisation
-    > Tune coefficients of the objective function
-
 NOTES Kars:
     > Got output although not through the conventional way.
     > No matter the size of the dataset and frequency the maximum delay is 60 seconds.
         * Seems odd to me, maybe has to do with the fact that delay is not integrated in the time separation
         >> Should be looked into
+
+MOST RECENT NOTES MARTIJN:
+    > Added the delay loops for the separation constraint
+    > Changed cost function to match description in the report (go there for explanation on how it works)
+
+TODO:
+    > Validate whether the aircraft separation constraint works properly
+    > Do some fancy kind of data visualisation
 """
 
 import gurobipy as gp
@@ -86,11 +89,11 @@ cpa = []
 for AC in AC_type:
     for n in range(len(IAFs)):
         for r in range(len(runways)):
-            cpa.append([IAFs[n], runways[r], time_to_r[IAFs[n]][r] * AC_fuel[AC], AC])
+            cpa.append([IAFs[n], runways[r], AC, (time_to_r[IAFs[n]][r] * AC_fuel[AC]/1297.569), runway_pop[runways[r]]/14500])
 
 df_cpa = pd.DataFrame(cpa)
-df_cpa.columns = ['IAF', 'Runway', 'CPA/AC', 'AC']
-
+df_cpa.columns = ['IAF', 'Runway', 'AC', 'Fuel cost', 'Noise cost']
+print(df_cpa)
 
 '''
 Setting up the decision variables:
@@ -117,9 +120,7 @@ model.update()
 '''
 Adding the constraints:
     > Always Assign Flight: make sure that every AC gets assigned
-    > Wind Restriction: AC should choose to land at runway where the wind is opposite of the heading
     > AC Landing sep: make sure that there is enough time between consecutive arrivals
-    > Noise limit switching: when a certain noise limit is surpassed, this constraint files an extra penalty
 '''
 
 # Always Assign Flight Constraint
@@ -139,18 +140,22 @@ T_sep = 120  # Time separation in seconds
 
 for f1 in range(len(flights['time in seconds'])):
     for f2 in range(len(flights['time in seconds'])):
-        if f1 != f2:
-            if abs(flights.loc[f1,'landing time R18R'] - flights.loc[f2,'landing time R18R']) < T_sep:
-                AC_sep_LHS = x[f1,0,0] + x[f2,0,0]
-                model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1, name=f'AC_sep_f{f2}_f{f1}_r{0}')
+        for d1 in delays:
+            for d2 in delays:
+                if f1 > f2: #> so flights are only compared once
+                    if abs((flights.loc[f1,'landing time R18R'] + d1) - (flights.loc[f2,'landing time R18R'] + d2)) < T_sep:
+                        AC_sep_LHS = x[f1,0,d1] + x[f2,0,d2]
+                        model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1, name=f'AC_sep_f{f2}_f{f1}_r{0}_delay{d1}/{d2}')
 
-            if abs(flights.loc[f1,'landing time R06E'] - flights.loc[f2,'landing time R06E']) < T_sep:
-                AC_sep_LHS = x[f1,1,0] + x[f2,1,0]
-                model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1, name=f'AC_sep_f{f2}_f{f1}_r{1}')
+                    if abs((flights.loc[f1,'landing time R06E'] + d1) - (flights.loc[f2,'landing time R06E'] + d2)) < T_sep:
+                        AC_sep_LHS = x[f1,1,d1] + x[f2,1,d2]
+                        model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1, name=f'AC_sep_f{f2}_f{f1}_r{1}_delay{d1}/{d2}')
 
-            if abs(flights.loc[f1,'landing time R24W'] - flights.loc[f2,'landing time R24W']) < T_sep:
-                AC_sep_LHS = x[f1,2,0] + x[f2,2,0]
-                model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1, name=f'AC_sep_f{f2}_f{f1}_r{2}')
+                    if abs((flights.loc[f1,'landing time R24W'] + d1) - (flights.loc[f2,'landing time R24W'] + d2)) < T_sep:
+                        AC_sep_LHS = x[f1,2,d1] + x[f2,2,d2]
+                        model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1, name=f'AC_sep_f{f2}_f{f1}_r{2}_delay{d1}/{d2}')
+                    else:
+                        pass
 
 model.update()
 
@@ -159,26 +164,24 @@ Generating the cost function
  > Minimize the cost
  > Cost increases as delay increases
 '''
-
-alpha = 0.3
-beta = 1 - alpha
-
-n_f = 1
-n_n = 1
-
 obj_func = LinExpr()
 
-for t in AC_type:
-    for f in range(len(flights['IAF'])):
-        for r in range(len(runways)):
-            delay_coef = 1
-            for d in delays:
-                C_F = delay_coef * df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][f]) & (df_cpa['AC'] == t)
-                                 & (df_cpa['Runway'] == runways[r]), 'CPA/AC'].values[0]
-
-                obj_func += C_F * x[f, r, d]
-
-                delay_coef += 0.1
+for f in range(len(flights['IAF'])):
+    for r in range(len(runways)):
+        for d in delays:
+            fuel_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][f]) &
+                                    (df_cpa['AC'] == flights['category'][f]) &
+                                    (df_cpa['Runway'] == runways[r]),'Fuel cost'].values[0]
+            noise_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][f]) &
+                                    (df_cpa['AC'] == flights['category'][f]) &
+                                    (df_cpa['Runway'] == runways[r]),'Noise cost'].values[0]
+            if abs(runway_headings[runways[r]] - flights['wind direction'][f]) >180:
+                wind_cost = (360-abs(runway_headings[runways[r]] - flights['wind direction'][f]))/180
+            else:
+                wind_cost = abs(runway_headings[runways[r]] - flights['wind direction'][f])/180
+            delay_cost = d/600
+            C_F = fuel_cost + noise_cost + wind_cost + delay_cost #Add all the costs
+            obj_func += C_F * x[f, r, d] #Add coefficient multiplied by DV to cost function
 
 model.update()
 model.setObjective(obj_func, GRB.MINIMIZE)
@@ -206,7 +209,6 @@ except:
     pass
 
 endTime = time.time()
-
 total_time = endTime - startTime
 print('Finished in', round(total_time,2) , 'seconds!')
 
