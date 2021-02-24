@@ -1,0 +1,4 @@
+,Flight,IAF,Category,Wind Direction,Delay,Landing Runway,Planned Arrival Time at Runway,Actual Arrival Time at Runway
+0,x0,ARTIP,H,1,0.0,R06E,1250,1250.0
+1,x1,ARTIP,M,181,0.0,R06E,1746,1746.0
+2,x2,RIVER,H,32,0.0,R06E,3544,3544.0

@@ -258,13 +258,26 @@ with open('solution.sol', newline='\n') as csvfile:
             arrTimeRunway.append(flights[landing_str][flightIndex])
             ActArrTimeRunway.append(flights[landing_str][flightIndex] + flightDelay)
 
-df_schedule = pd.DataFrame(
-    list(zip(landedFlights, flights['IAF'].to_list(), flights['category'].to_list(), flight_delay, used_runways, arrTimeRunway, ActArrTimeRunway)),
-    columns=['Flight', 'IAF', 'Category', 'Delay', 'Landing Runway', 'Planned Arrival Time at Runway',
+df_data = pd.DataFrame(
+    list(zip(landedFlights,
+             flights['IAF'].to_list(),
+             flights['category'].to_list(),
+             flights['wind direction'].to_list(),
+             flight_delay,
+             used_runways,
+             arrTimeRunway,
+             ActArrTimeRunway)),
+    columns=['Flight',
+             'IAF',
+             'Category',
+             'Wind Direction',
+             'Delay',
+             'Landing Runway',
+             'Planned Arrival Time at Runway',
              'Actual Arrival Time at Runway'])
 
 # Saving the simulation data in a CSV.
-frequency = str(int(len(df_schedule) / (flights['time in seconds'].to_list()[-1] / 3600)))
-scheduleName = 'Schedule_F' + str(len(df_schedule)) + f'x{frequency}'  # number of flights x frequency
-savePath = os.getcwd() + '/Schedule_CSV'
-df_schedule.to_csv(os.path.join(savePath, scheduleName))
+frequency = str(int(len(df_data) / (flights['time in seconds'].to_list()[-1] / 3600)))
+dataName = 'Data_F' + str(len(df_data)) + f'x{frequency}'  # number of flights x frequency
+savePath = os.getcwd() + '/Data_CSVs'
+df_data.to_csv(os.path.join(savePath, dataName))
