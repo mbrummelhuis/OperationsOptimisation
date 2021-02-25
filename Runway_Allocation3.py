@@ -180,21 +180,27 @@ Generating the cost function
 '''
 obj_func = LinExpr()
 
+
+def genCostCoefs(AC, RW, DL):
+    fuel_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][AC]) &
+                           (df_cpa['AC'] == flights['category'][AC]) &
+                           (df_cpa['Runway'] == runways[RW]), 'Fuel cost'].values[0]
+    noise_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][AC]) &
+                            (df_cpa['AC'] == flights['category'][AC]) &
+                            (df_cpa['Runway'] == runways[RW]), 'Noise cost'].values[0]
+    if abs(runway_headings[runways[r]] - flights['wind direction'][AC]) > 180:  # No headwind?
+        wind_cost = (360 - abs(runway_headings[runways[RW]] - flights['wind direction'][AC])) / 180
+    else:  # Headwind?
+        wind_cost = abs(runway_headings[runways[RW]] - flights['wind direction'][AC]) / 180
+    delay_cost = DL / 600
+
+    return fuel_cost, noise_cost, wind_cost, delay_cost
+
+
 for f in range(len(flights['IAF'])):
     for r in range(len(runways)):
         for d in delays:
-            fuel_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][f]) &
-                                   (df_cpa['AC'] == flights['category'][f]) &
-                                   (df_cpa['Runway'] == runways[r]), 'Fuel cost'].values[0]
-            noise_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][f]) &
-                                    (df_cpa['AC'] == flights['category'][f]) &
-                                    (df_cpa['Runway'] == runways[r]), 'Noise cost'].values[0]
-            if abs(runway_headings[runways[r]] - flights['wind direction'][f]) > 180:
-                wind_cost = (360 - abs(runway_headings[runways[r]] - flights['wind direction'][f])) / 180
-            else:
-                wind_cost = abs(runway_headings[runways[r]] - flights['wind direction'][f]) / 180
-            delay_cost = d / 600
-            C_F = fuel_cost + noise_cost + wind_cost + delay_cost  # Add all the costs
+            C_F = sum(genCostCoefs(f, r, d))  # Add all the costs
             obj_func += C_F * x[f, r, d]  # Add coefficient multiplied by DV to cost function
 
 model.update()
@@ -232,11 +238,16 @@ with open('solution.sol', newline='\n') as csvfile:
     reader = csv.reader((line.replace(' ', ' ') for line in csvfile), delimiter=' ')
     next(reader)  # skip header
     next(reader)
+
     landedFlights = []
     used_runways = []
     flight_delay = []
     arrTimeRunway = []
     ActArrTimeRunway = []
+    lstFuelCost = []
+    lstNoiseCost = []
+    lstWindCost = []
+    lstDelayCost = []
 
     for var, value in reader:
         value = float(value)
@@ -258,6 +269,14 @@ with open('solution.sol', newline='\n') as csvfile:
             arrTimeRunway.append(flights[landing_str][flightIndex])
             ActArrTimeRunway.append(flights[landing_str][flightIndex] + flightDelay)
 
+            # Storing the costs
+            fuel_cost, noise_cost, wind_cost, delay_cost = genCostCoefs(flightIndex, runwayIndex, flightDelay)
+
+            lstFuelCost.append(fuel_cost)
+            lstNoiseCost.append(noise_cost)
+            lstWindCost.append(wind_cost)
+            lstDelayCost.append(delay_cost)
+
 df_data = pd.DataFrame(
     list(zip(landedFlights,
              flights['IAF'].to_list(),
@@ -266,7 +285,12 @@ df_data = pd.DataFrame(
              flight_delay,
              used_runways,
              arrTimeRunway,
-             ActArrTimeRunway)),
+             ActArrTimeRunway,
+             lstFuelCost,
+             lstNoiseCost,
+             lstWindCost,
+             lstDelayCost
+             )),
     columns=['Flight',
              'IAF',
              'Category',
@@ -274,7 +298,12 @@ df_data = pd.DataFrame(
              'Delay',
              'Landing Runway',
              'Planned Arrival Time at Runway',
-             'Actual Arrival Time at Runway'])
+             'Actual Arrival Time at Runway',
+             'FuelCost',
+             'NoiseCost',
+             'WindCost',
+             'DelayCost'
+             ])
 
 # Saving the simulation data in a CSV.
 frequency = str(int(len(df_data) / (flights['time in seconds'].to_list()[-1] / 3600)))
