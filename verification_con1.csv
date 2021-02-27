@@ -1,0 +1,8 @@
+amount of flights,60
+average flights per hour,180
+time in seconds,time in d:hh:mm:ss,category,IAF,wind direction
+60,00:01:00,M,RIVER,240
+660,00:01:00,M,RIVER,240
+1260,00:01:00,M,RIVER,240
+1860,00:01:00,M,RIVER,240
+2460,00:01:00,M,RIVER,240

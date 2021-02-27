@@ -87,7 +87,8 @@ for f in range(len(flights)):
             flights.loc[f, 'landing time R06E'] = time_to_r[IAFs[IAF]][1] + flights['time in seconds'][f]
             flights.loc[f, 'landing time R24W'] = time_to_r[IAFs[IAF]][2] + flights['time in seconds'][f]
 
-# Print flights for checking      
+# Print flights for checking   
+print("FLIGHT DATA")   
 print(flights)
 
 # Create a dataframe which includes the cost per arc (CPA) from IAF to runway
@@ -101,7 +102,6 @@ for AC in AC_type:
 df_cpa = pd.DataFrame(cpa)
 df_cpa.columns = ['IAF', 'Runway', 'AC', 'Fuel cost', 'Noise cost']
 print(df_cpa)
-
 '''
 Setting up the decision variables:
     > flight_{f, r, d}: arriving flight from IAF f to runway r, with delay d
@@ -142,8 +142,7 @@ for f in range(len(flights['IAF'])):
 
 # AC Time Separation Constraint
 # For each flight, check if they are landing on the same runway within the T_sep interval. If this is the case, append constraint 
-# stating only one flight can land.
-# TODO: Figure out how delay fits into all of this
+# stating only one of both flights can land.
 T_sep = 120  # Time separation in seconds
 
 for f1 in range(len(flights['time in seconds'])):
@@ -185,13 +184,12 @@ def genCostCoefs(AC, RW, DL):
     fuel_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][AC]) &
                            (df_cpa['AC'] == flights['category'][AC]) &
                            (df_cpa['Runway'] == runways[RW]), 'Fuel cost'].values[0]
+
     noise_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][AC]) &
                             (df_cpa['AC'] == flights['category'][AC]) &
                             (df_cpa['Runway'] == runways[RW]), 'Noise cost'].values[0]
-    if abs(runway_headings[runways[r]] - flights['wind direction'][AC]) > 180:  # No headwind?
-        wind_cost = (360 - abs(runway_headings[runways[RW]] - flights['wind direction'][AC])) / 180
-    else:  # Headwind?
-        wind_cost = abs(runway_headings[runways[RW]] - flights['wind direction'][AC]) / 180
+
+    wind_cost = 1 - abs(runway_headings[runways[r]] - flights['wind direction'][AC])/180
     delay_cost = DL / 600
 
     return fuel_cost, noise_cost, wind_cost, delay_cost
