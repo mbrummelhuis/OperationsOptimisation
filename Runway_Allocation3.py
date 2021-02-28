@@ -101,7 +101,7 @@ for AC in AC_type:
 
 df_cpa = pd.DataFrame(cpa)
 df_cpa.columns = ['IAF', 'Runway', 'AC', 'Fuel cost', 'Noise cost']
-print(df_cpa)
+
 '''
 Setting up the decision variables:
     > flight_{f, r, d}: arriving flight from IAF f to runway r, with delay d
@@ -188,8 +188,12 @@ def genCostCoefs(AC, RW, DL):
     noise_cost = df_cpa.loc[(df_cpa['IAF'] == flights['IAF'][AC]) &
                             (df_cpa['AC'] == flights['category'][AC]) &
                             (df_cpa['Runway'] == runways[RW]), 'Noise cost'].values[0]
+                            
+    if abs(runway_headings[runways[r]] - flights['wind direction'][AC]) <= 180:
+        wind_cost = 1 - abs(runway_headings[runways[r]] - flights['wind direction'][AC])/180
+    else:
+        wind_cost = (abs(runway_headings[runways[r]] - flights['wind direction'][AC])-180)/180
 
-    wind_cost = 1 - abs(runway_headings[runways[r]] - flights['wind direction'][AC])/180
     delay_cost = DL / 600
 
     return fuel_cost, noise_cost, wind_cost, delay_cost
