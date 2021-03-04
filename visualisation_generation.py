@@ -44,7 +44,10 @@ for i in range(len(df_data['Actual Arrival Time at Runway'])):
     runwayIndex = runways.index(df_data['Landing Runway'][i])
     IAF = df_data['IAF'][i]
     arrTime = df_data['Actual Arrival Time at Runway'][i]
-    depTimeRW = arrTime + time_to_taxi[IAF][runwayIndex]
+
+    occupationTime = time_to_taxi[IAF][runwayIndex]
+    # if occupationTime > 120: occupationTime = 120
+    depTimeRW = arrTime + occupationTime
 
     timeRunwayOccupied.append(depTimeRW)
 

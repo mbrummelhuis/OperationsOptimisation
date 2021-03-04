@@ -48,7 +48,8 @@ sns.set_theme()
 
 # Get path to current folder and select the correct file
 cwd = os.getcwd()
-filename = 'verification_con2.csv'
+# filename = 'verification_con2.csv'
+filename = 'landing_requests.csv'
 
 startTime = time.time()
 
@@ -189,10 +190,10 @@ def genCostCoefs(AC, RW, DL):
                             (df_cpa['AC'] == flights['category'][AC]) &
                             (df_cpa['Runway'] == runways[RW]), 'Noise cost'].values[0]
                             
-    if abs(runway_headings[runways[r]] - flights['wind direction'][AC]) <= 180:
-        wind_cost = 1 - abs(runway_headings[runways[r]] - flights['wind direction'][AC])/180
+    if abs(runway_headings[runways[RW]] - flights['wind direction'][AC]) <= 180:
+        wind_cost = 1 - abs(runway_headings[runways[RW]] - flights['wind direction'][AC])/180
     else:
-        wind_cost = (abs(runway_headings[runways[r]] - flights['wind direction'][AC])-180)/180
+        wind_cost = (abs(runway_headings[runways[RW]] - flights['wind direction'][AC])-180)/180
 
     delay_cost = DL / 600
 
@@ -312,3 +313,6 @@ frequency = str(int(len(df_data) / (flights['time in seconds'].to_list()[-1] / 3
 dataName = 'Data_F' + str(len(df_data)) + f'x{frequency}'  # number of flights x frequency
 savePath = os.getcwd() + '/Data_CSVs'
 df_data.to_csv(os.path.join(savePath, dataName))
+
+print('Check output data')
+print(df_data)
