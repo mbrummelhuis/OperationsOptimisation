@@ -77,16 +77,18 @@ AC_type, AC_fuel, AC_db = gp.multidict({
 })
 
 # Adding landing time at specific runway to the flights dataframe (for checking the separation constraint)
-flights['landing time R18R'] = 0
 flights['landing time R06E'] = 0
 flights['landing time R24W'] = 0
+flights['landing time R18R'] = 0
+
 
 for f in range(len(flights)):
     for IAF in range(len(IAFs)):  # Iterate over IAFS
         if IAFs[IAF] == flights['IAF'][f]:
-            flights.loc[f, 'landing time R18R'] = time_to_r[IAFs[IAF]][0] + flights['time in seconds'][f]
-            flights.loc[f, 'landing time R06E'] = time_to_r[IAFs[IAF]][1] + flights['time in seconds'][f]
-            flights.loc[f, 'landing time R24W'] = time_to_r[IAFs[IAF]][2] + flights['time in seconds'][f]
+            flights.loc[f, 'landing time R06E'] = time_to_r[IAFs[IAF]][0] + flights['time in seconds'][f]
+            flights.loc[f, 'landing time R24W'] = time_to_r[IAFs[IAF]][1] + flights['time in seconds'][f]
+            flights.loc[f, 'landing time R18R'] = time_to_r[IAFs[IAF]][2] + flights['time in seconds'][f]
+
 
 # Print flights for checking   
 print("FLIGHT DATA")   
@@ -151,23 +153,24 @@ for f1 in range(len(flights['time in seconds'])):
         for d1 in delays:
             for d2 in delays:
                 if f1 > f2:  # > so flights are only compared once
-                    if abs((flights.loc[f1, 'landing time R18R'] + d1) - (
-                            flights.loc[f2, 'landing time R18R'] + d2)) < T_sep:
+                    if abs((flights.loc[f1, 'landing time R06E'] + d1) - (
+                            flights.loc[f2, 'landing time R06E'] + d2)) < T_sep:
                         AC_sep_LHS = x[f1, 0, d1] + x[f2, 0, d2]
                         model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1,
                                         name=f'AC_sep_f{f2}_f{f1}_r{0}_delay{d1}/{d2}')
 
-                    if abs((flights.loc[f1, 'landing time R06E'] + d1) - (
-                            flights.loc[f2, 'landing time R06E'] + d2)) < T_sep:
+                    if abs((flights.loc[f1, 'landing time R24W'] + d1) - (
+                            flights.loc[f2, 'landing time R24W'] + d2)) < T_sep:
                         AC_sep_LHS = x[f1, 1, d1] + x[f2, 1, d2]
                         model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1,
                                         name=f'AC_sep_f{f2}_f{f1}_r{1}_delay{d1}/{d2}')
 
-                    if abs((flights.loc[f1, 'landing time R24W'] + d1) - (
-                            flights.loc[f2, 'landing time R24W'] + d2)) < T_sep:
+                    if abs((flights.loc[f1, 'landing time R18R'] + d1) - (
+                            flights.loc[f2, 'landing time R18R'] + d2)) < T_sep:
                         AC_sep_LHS = x[f1, 2, d1] + x[f2, 2, d2]
                         model.addConstr(lhs=AC_sep_LHS, sense=GRB.LESS_EQUAL, rhs=1,
                                         name=f'AC_sep_f{f2}_f{f1}_r{2}_delay{d1}/{d2}')
+
                     else:
                         pass
 
