@@ -130,6 +130,13 @@ def plotCosts():
     if save_files == 1: plt.savefig(savePathFile, format='png')
     plt.show()
 
+    plt.figure(figsize=(10, 10))
+    df_cost.plot(kind='bar')
+    name = '_Cost_Hist_CoF'
+    savePathFile = os.path.join(savePath, filename + name + '.png')
+    if save_files == 1: plt.savefig(savePathFile, format='png')
+    plt.show()
+
 
 
 
