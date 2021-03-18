@@ -48,8 +48,8 @@ sns.set_theme()
 
 # Get path to current folder and select the correct file
 cwd = os.getcwd()
-# filename = 'verification_con2.csv'
-filename = 'landing_requests.csv'
+filename = 'verification_con2.csv'
+# filename = 'landing_requests.csv'
 
 startTime = time.time()
 

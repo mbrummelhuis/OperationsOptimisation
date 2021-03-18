@@ -24,6 +24,15 @@ save_files = int(input('Do you want to save the files? 1 = yes, 0 = no.'))
 df_data = pd.read_csv(os.path.join(path, filename))
 df_data.set_index('Unnamed: 0', inplace=True)
 
+dt = 60  # delta time delay in seconds
+delay_steps = 10  # maximum number of delay steps (minutes)
+delays = np.ones(delay_steps).tolist()
+delays[0] = 0
+for i in range(len(delays) - 1):
+    delays[i + 1] = delays[i] + dt
+# delays = [str(i) for i in delays]
+
+
 if len(df_data) <= 60:
     fs = (30, 10)
 else:
@@ -78,9 +87,13 @@ df_cost_norm = df_cost.divide(df_CoF['Flight'].to_list(), axis=0)
 
 def plotHists():
     plt.figure()
-    df_data['Delay'].hist()
     plt.title('Histogram of delays')
+    # df_data['Delay'].plot.hist(bins=10)
+    plt.hist(df_data['Delay'].to_list(), bins=delays, align='left', rwidth=None)
+    plt.xticks(delays, rotation=45)
+    plt.ylabel('Number of flights')
     plt.xlabel('Delay [s]')
+    plt.tight_layout()
     name = '_Delay_Hist'
     savePathFile = os.path.join(savePath, filename + name + '.png')
     if save_files == 1: plt.savefig(savePathFile, format='png')
@@ -96,12 +109,14 @@ def plotHists():
     # savePathFile = os.path.join(save_path, name + filename)
     # if save_files == 1: plt.savefig(savePathFile, dpi='200', format='png')
 
-    plt.figure(figsize=(40, 40))
-    sns.pairplot(df_data)
-    plt.show()
+    # plt.figure(figsize=(40, 40))
+    # sns.pairplot(df_data)
+    # plt.show()
 
     plt.figure(figsize=(10, 10))
     df_data.groupby(['Landing Runway', 'Category']).size().unstack().plot(kind='bar')
+    plt.ylabel('Number of flights')
+    plt.tight_layout()
     name = '_RWxCAT_Hist'
     savePathFile = os.path.join(savePath, filename + name + '.png')
     if save_files == 1: plt.savefig(savePathFile, format='png')
@@ -109,6 +124,8 @@ def plotHists():
 
     plt.figure(figsize=(10, 10))
     df_data.groupby(['IAF', 'Landing Runway']).size().unstack().plot(kind='bar')
+    plt.ylabel('Number of flights')
+    plt.tight_layout()
     name = '_IAFxRW_Hist'
     savePathFile = os.path.join(savePath, filename + name + '.png')
     if save_files == 1: plt.savefig(savePathFile, format='png')
@@ -116,6 +133,8 @@ def plotHists():
 
     plt.figure(figsize=(10, 10))
     df_data.groupby(['Landing Runway', 'Wind Direction']).size().unstack().plot(kind='bar')
+    plt.ylabel('Number of flights')
+    plt.tight_layout()
     name = '_RWxWD_Hist'
     savePathFile = os.path.join(savePath, filename + name + '.png')
     if save_files == 1: plt.savefig(savePathFile, format='png')
@@ -125,6 +144,8 @@ def plotCosts():
 
     plt.figure(figsize=(10, 10))
     df_cost_norm.plot(kind='bar')
+    plt.ylabel('Cost contribution per flight [MU]')
+    plt.tight_layout()
     name = '_Cost_Hist'
     savePathFile = os.path.join(savePath, filename + name + '.png')
     if save_files == 1: plt.savefig(savePathFile, format='png')
@@ -132,6 +153,8 @@ def plotCosts():
 
     plt.figure(figsize=(10, 10))
     df_cost.plot(kind='bar')
+    plt.ylabel('Total contribution to cost function [MU]')
+    plt.tight_layout()
     name = '_Cost_Hist_CoF'
     savePathFile = os.path.join(savePath, filename + name + '.png')
     if save_files == 1: plt.savefig(savePathFile, format='png')
@@ -170,6 +193,7 @@ def plotSchedulesRW():
             end = np.array(df_data_R18R['Departure Time Runway'].to_list())
             ax[2].barh(range(len(begin)), end - begin, left=begin, color='mediumseagreen')
             ax[2].set_ylabel('Landings at R18R')
+            ax[2].set_xlabel('Arrival time at runway [s]')
     else:
         if len(df_data_R06E) >= 1:
             begin = np.array(df_data_R06E['Actual Arrival Time at Runway'].to_list())
@@ -188,6 +212,12 @@ def plotSchedulesRW():
             end = np.array(df_data_R18R['Departure Time Runway'].to_list())
             ax.barh(range(len(begin)), end - begin, left=begin, color='mediumseagreen')
             ax.set_ylabel('Landings at R18R')
+
+        ax.set_xlabel('Arrival time at runway [s]')
+
+
+
+    plt.tight_layout()
 
     name = '_FlightSchedule'
     savePathFile = os.path.join(savePath, filename + name + '.png')
